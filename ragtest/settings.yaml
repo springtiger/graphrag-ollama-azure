@@ -49,7 +49,7 @@ llm:
   api_base: http://localhost:11434/v1
   api_key: ${GRAPHRAG_API_KEY}
   concurrent_requests: 10
-  model: qwen2:latest
+  model: llama3:latest
   model_supports_json: true
   type: openai_chat
 local_search: null

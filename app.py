@@ -5,22 +5,20 @@ import os
 import networkx as nx
 import plotly.graph_objects as go
 import numpy as np
-import plotly.io as pio
 import lancedb
-import io
 import shutil
 import logging
 import queue
 import threading
 import time
 import glob
-from datetime import datetime
 import json
 import requests
 from ollama import chat
-import pyarrow.parquet as pq
 import pandas as pd
 import sys
+
+from graphrag.query.cli import run_global_search, run_local_search
 
 # Add the project root to the Python path
 project_root = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
@@ -138,11 +136,10 @@ def index_graph(progress=gr.Progress()):
     logging.info("Indexing completed")
     return "\n".join(full_output), update_logs()
 
-def run_query(root_dir, method, query, history, model, temperature, max_tokens):
-    from graphrag.query.cli import run_global_search, run_local_search
+def run_query(root_dir, data_dir, method, query, history, model, temperature, max_tokens):    
     if method == "local":
         return run_local_search(
-                None,
+                data_dir,
                 root_dir,
                 2,
                 "Multiple Paragraphs",
@@ -151,11 +148,12 @@ def run_query(root_dir, method, query, history, model, temperature, max_tokens):
             )
     elif method == "global":
         return run_global_search(
-                None,
+                data_dir,
                 root_dir,
                 2,
                 "Multiple Paragraphs",
                 query,
+                history,
             )
     else:
         raise ValueError(INVALID_METHOD_ERROR)
@@ -181,7 +179,7 @@ def run_query(root_dir, method, query, history, model, temperature, max_tokens):
         )
         return response['message']['content']
     except Exception as e:
-        return f"Error: {str(e)}"
+        return f"Error: {str(e)}"    
     '''
 
 def upload_file(file):
@@ -428,11 +426,14 @@ def chat_with_llm(message, history, system_message, temperature, max_tokens, mod
     except Exception as e:
         return f"Error: {str(e)}"
 
-def send_message(query_type, query, history, system_message, temperature, max_tokens, model):
+def send_message(data_dir, query_type, query, history, system_message, temperature, max_tokens, model):
+
     root_dir = "./ragtest"
+    if data_dir != "":
+        data_dir = os.path.join(root_dir,"output",data_dir,"artifacts")
     try:
         if query_type in ["global", "local"]:
-            result = run_query(root_dir, query_type, query, history, model, temperature, max_tokens)
+            result = run_query(root_dir, data_dir, query_type, query, history, model, temperature, max_tokens)
         else:  # Direct chat
             result = chat_with_llm(query, history, system_message, temperature, max_tokens, model)
         history.append((query, result))
@@ -835,6 +836,8 @@ with gr.Blocks(css=custom_css, theme=gr.themes.Base()) as demo:
 
         with gr.Column(scale=2, elem_id="right-column"):
             with gr.Group(elem_id="chat-container"):
+                data_dir = gr.Dropdown(label="Data Dir", choices=list_output_folders("./ragtest"), value="")
+
                 chatbot = gr.Chatbot(label="Chat History", elem_id="chatbot")
                 with gr.Row(elem_id="chat-input-row"):
                     query_type = gr.Radio(["global", "local", "direct"], label="Query Type", value="global")
@@ -915,12 +918,12 @@ with gr.Blocks(css=custom_css, theme=gr.themes.Base()) as demo:
     )
     query_btn.click(
         fn=send_message,
-        inputs=[query_type, query_input, chatbot, system_message, temperature, max_tokens, model],
+        inputs=[data_dir, query_type, query_input, chatbot, system_message, temperature, max_tokens, model],
         outputs=[chatbot, query_input, log_output]
     )
     query_input.submit(
         fn=send_message,
-        inputs=[query_type, query_input, chatbot, system_message, temperature, max_tokens, model],
+        inputs=[data_dir, query_type, query_input, chatbot, system_message, temperature, max_tokens, model],
         outputs=[chatbot, query_input, log_output]
     )
     refresh_models_btn.click(

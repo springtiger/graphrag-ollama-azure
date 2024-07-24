@@ -2,6 +2,7 @@ venv
 env
 *.pyc
 *.DS_Store
-cache
-description_embedding.lance
-graphrag
+/ragtest/cache
+/ragtest/output
+/ragtest/input
+/lancedb

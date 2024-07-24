@@ -1,0 +1,14 @@
+python -m graphrag.index --root ./ragtest
+
+Commands:
+#initialize
+python -m graphrag.index --init --root ./ragtest
+
+#index
+python -m graphrag.index --root ./ragtest
+
+#query
+python -m graphrag.query --root ./ragtest --method global "query"
+
+#query
+python -m graphrag.query --root ./ragtest --method local "query"
